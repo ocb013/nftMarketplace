@@ -17,6 +17,10 @@ contract NFTMatketplace is Initializable, ReentrancyGuardUpgradeable {
         owner = msg.sender;
         fee = 1000000000000000;
     }
+    
+    constructor() {
+        _disableInitializers();
+    }
 
 	modifier onlyOwner() {
 		require(owner == msg.sender, "You are not the owner!");
