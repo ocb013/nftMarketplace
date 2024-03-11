@@ -13,6 +13,10 @@ contract NFTMatketplace is Initializable, ReentrancyGuardUpgradeable {
 	address private owner;
     uint public fee;
 
+    constructor() {
+        _disableInitializers();
+    }
+
 
     function initialize() initializer public {
         owner = msg.sender;
