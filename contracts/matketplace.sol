@@ -2,10 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-contract NFTMatketplace {
+contract NFTMatketplace is ReentrancyGuard {
 
 	address private owner;
 
@@ -66,8 +68,9 @@ contract NFTMatketplace {
 		fee = _fee;
 	}
 
-	function withdraw(address receiver) external onlyOwner {
-		payable(receiver).transfer(feeBalance);
+	function withdraw(address receiver) external onlyOwner nonReentrant() {
+		(bool sent,) = payable(receiver).call{value: feeBalance}("");
+        require(sent, "Failure!");
 		feeBalance = 0;
 	}
 
