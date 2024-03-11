@@ -54,7 +54,8 @@ contract NFTMatketplace {
         require(offersList[_id].isSold == false, "Item is already sold");
         require(msg.value == offersList[_id].price + fee, "Wrong amount of funds!");
 
-        payable(offersList[_id].seller).transfer(msg.value - fee);
+        (bool sent,) = payable(offersList[_id].seller).call{value: msg.value - fee}("");
+        require(sent, "Failure!");
         IERC721(offersList[_id].nftAddress).transferFrom(address(this), msg.sender, offersList[_id].tokenId);
 		feeBalance += fee;
         offersList[_id].isSold = true;
