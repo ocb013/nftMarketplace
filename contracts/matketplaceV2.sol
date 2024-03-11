@@ -13,10 +13,6 @@ contract NFTMatketplaceV2 is Initializable, ReentrancyGuardUpgradeable {
 	address private owner;
     uint public fee;
 
-    constructor() {
-        _disableInitializers();
-    }
-
 	modifier onlyOwner() {
 		require(owner == msg.sender, "You are not the owner!");
 		_;
