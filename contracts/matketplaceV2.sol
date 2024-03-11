@@ -8,25 +8,15 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-contract NFTMatketplace is Initializable, ReentrancyGuardUpgradeable {
+contract NFTMatketplaceV2 is Initializable, ReentrancyGuardUpgradeable {
 
 	address private owner;
     uint public fee;
-
-
-    function initialize() initializer public {
-        owner = msg.sender;
-        fee = 1000000000000000;
-    }
 
 	modifier onlyOwner() {
 		require(owner == msg.sender, "You are not the owner!");
 		_;
 	}
-
-    function checkOwner() public view onlyOwner returns(address) {
-        return owner;
-    } 
 
     mapping(uint => Offer) public offersList;
     uint itemId;
@@ -41,6 +31,14 @@ contract NFTMatketplace is Initializable, ReentrancyGuardUpgradeable {
         uint price;
         bool isSold;
     }
+
+    function changeOwner(address _newOwner) external onlyOwner {
+        owner = _newOwner;
+    }
+
+    function checkOwner() public view onlyOwner returns(address) {
+        return owner;
+    } 
 
     function createOffer(uint tokenId, address nftAddress, uint price) external  {
         require(price > 0, "Price must be more then zero");

@@ -1,8 +1,9 @@
+const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers")
 const { expect } = require("chai")
-const { ethers } = require("hardhat")
+const { ethers, upgrades } = require("hardhat")
 
 describe("Marketplace", function () {
-	let acc1, acc2
+	let deployer, acc2
 	let marketplaceAddress
 	let nftAddress
 	let nft
@@ -10,12 +11,19 @@ describe("Marketplace", function () {
 	let listPrice = ethers.parseEther("0.01", "ether")
 	let fee
 
-	beforeEach(async function () {
-		;[acc1, acc2] = await ethers.getSigners()
+	async function deployProxy() {
+        const NFTMatketplace = await ethers.getContractFactory("NFTMatketplace")
+        marketplace = await upgrades.deployProxy(NFTMatketplace, [], {
+            initializer: 'initialize'
+        })
 
-		const NFTMatketplace = await ethers.getContractFactory("NFTMatketplace")
-		marketplace = await NFTMatketplace.deploy()
-		await marketplace.waitForDeployment()
+        await marketplace.waitForDeployment();
+    }
+
+	beforeEach(async function () {
+		;[deployer, acc2] = await ethers.getSigners()
+
+		await loadFixture(deployProxy);
 		marketplaceAddress = await marketplace.getAddress()
 
 		const NFT = await ethers.getContractFactory("NFT")
@@ -25,22 +33,38 @@ describe("Marketplace", function () {
 		fee = await marketplace.fee()
 	})
 
-	it("Should allow to change fee", async function () {
-		let fee = await marketplace.fee()
+	it("Should upgrade contract with saved data", async function() {
+		await marketplace.changeFee(2000000000000000)
+		const NFTMatketplaceV2 = await ethers.getContractFactory("NFTMatketplaceV2")
+		const marketplaceV2 = await upgrades.upgradeProxy(marketplaceAddress, NFTMatketplaceV2)
+		fee = await marketplaceV2.fee()
+		expect(fee).to.equal(2000000000000000)
+		await marketplaceV2.changeOwner(acc2.address)
+		let newOwner = await marketplaceV2.connect(acc2).checkOwner()
+		expect(newOwner).to.be.equal(acc2.address)
+
+	})
+
+	it("Should allow to change fee and only owner can change it", async function () {
 		expect(fee).to.equal(1000000000000000)
 		await marketplace.changeFee(2000000000000000)
 		fee = await marketplace.fee()
 		expect(fee).to.equal(2000000000000000)
+		await expect(
+			marketplace
+				.connect(acc2)
+				.changeFee(2000000000000000)
+		).to.be.revertedWith("You are not the owner!")
 	})
 
 	it("Should be possible to sell NFT", async function () {
-		await nft.safeMint(acc1.address, "META_DATA_URI")
+		await nft.safeMint(deployer.address, "META_DATA_URI")
 		await nft.approve(marketplaceAddress, 0)
 		await marketplace.createOffer(0, nftAddress, listPrice)
 	})
 
 	it("Should allow to buy NFT", async function () {
-		await nft.safeMint(acc1.address, "META_DATA_URI")
+		await nft.safeMint(deployer.address, "META_DATA_URI")
 		await nft.approve(marketplaceAddress, 0)
 		await marketplace.createOffer(0, nftAddress, listPrice)
 
@@ -54,7 +78,7 @@ describe("Marketplace", function () {
 	})
 
 	it("Should revert if wrong amount", async function () {
-		await nft.safeMint(acc1.address, "META_DATA_URI")
+		await nft.safeMint(deployer.address, "META_DATA_URI")
 		await nft.approve(marketplaceAddress, 0)
 		await marketplace.createOffer(0, nftAddress, listPrice)
 
@@ -69,7 +93,7 @@ describe("Marketplace", function () {
 	})
 
 	it("Should not allow to buy already solded NFT", async function () {
-		await nft.safeMint(acc1.address, "META_DATA_URI")
+		await nft.safeMint(deployer.address, "META_DATA_URI")
 		await nft.approve(marketplaceAddress, 0)
 		await marketplace.createOffer(0, nftAddress, listPrice)
 
@@ -89,7 +113,7 @@ describe("Marketplace", function () {
 	})
 
 	it("Should allow to widthdraw funds", async function () {
-		await nft.safeMint(acc1.address, "META_DATA_URI")
+		await nft.safeMint(deployer.address, "META_DATA_URI")
 		await nft.approve(marketplaceAddress, 0)
 		await marketplace.createOffer(0, nftAddress, listPrice)
 
@@ -97,9 +121,9 @@ describe("Marketplace", function () {
 			await marketplace.connect(acc2).buyNft(0, { value: listPrice + fee })
 		)
 		await expect(() =>
-			marketplace.withdraw(acc1.address)
+			marketplace.withdraw(deployer.address)
 		).to.changeEtherBalances(
-			[marketplace, acc1],
+			[marketplace, deployer],
 			[-1000000000000000, 1000000000000000]
 		)
 	})
